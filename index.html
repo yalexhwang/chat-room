@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Chat Room</title>
+	<!-- <link rel="stylesheet" href="styles.css"> -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+	<style>
+		.title {
+			margin-bottom: 10px;
+			text-align: center;
+		}
+		#main {
+			width: 1240px;
+			height: 700px;
+		}
+		.userInfoBox {
+			margin-bottom: 10px;
+		}
+		#nameDisplay {
+			display: inline;
+		}
+		#chat-window {
+			height: 100%;
+			background-color: #f4ebff;
+			border-radius: 3px;
+			padding: 5px;
+		}
+		.list-user {
+			padding: 0px;
+		}
+		.user-icon, .user-name, .user-menu {
+			padding: 0px;
+		}
+		#chat-input {
+			margin-top: 10px;
+			border-color: #d8b8ff;
+		}
+		#toolbar {
+			margin-top: 10px;
+		}
+		#chat-status {
+			text-align: center;
+			color: #283a90;
+			padding: 5px;
+		}
+		#chats {
+			background-color: white;
+			height: 500px;
+			border: 1px solid #d8b8ff;
+			border-radius: 3px;
+			margin: 10px 0px;
+		}
+		#canvas {
+			background-color: white;
+			margin-top: 10px;
+			height: 500px;
+			border: 1px solid #d8b8ff;
+			border-radius: 3px;
+		}
+		#canvas-wrapper {
+			padding: 0px;
+		}
+		.chatBox {
+			margin: 8px;
+		}
+		.chatBox-chat {
+			display: block;
+			margin: 0px 10px;
+			padding: 10px;
+			background-color: #cae1ff;
+			border-radius: 5px;
+		}
+		.chatBox-user {
+			color: #003366;
+		}
+		.chatBox-timeStamp {
+			font-size: 12px;
+		}
+		#tool-bar {
+			width: 15%;
+		}
+
+	</style>
+	<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+	//Puts io object to Window object by using <script> tag
+	//Same as console.log(window.io);
+		var socketio = io.connect('http://127.0.0.1:8080');
+		var userList = [];
+		var user = {};
+
+		socketio.on('connected', function(data) {
+			console.log(data);
+			user.name = data.newUser.name;
+			user.id = data.newUser.id;
+			var status =  "A new user <mark>" + user.name + "</mark> has entered.";
+			updateChatStatus(status);
+			makeUserList(data.list);
+		});
+
+		socketio.on('userList_updated', function(data) {
+			console.log(data);
+			var prevName = data.status.prev;
+			var index = data.status.index;
+			var action = data.status.action;
+			var statMessage = "";
+			if (action == "name_changed") {
+				statMessage += "A user " + prevName + " has changed its name to <mark>" + data.list[index].name + "</mark>.";
+			} else if (action == "disconnected") {
+				statMessage += "A user <mark>" + prevName + "</mark> has left.";
+			}
+			updateChatStatus(statMessage);
+			makeUserList(data.list);
+		});
+
+		socketio.on('message_to_client', function(data) {
+			var box = document.createElement('div');
+			box.className = 'chatBox';
+			var message = document.createElement('span');
+			message.className = 'chatBox-chat';
+			var name = document.createElement('span');
+			name.className = 'chatBox-user';
+			var time = document.createElement('span');
+			time.className = 'chatBox-timeStamp';
+			message.innerHTML = data.message;
+			name.innerHTML = data.name;
+			var now = new Date();
+			var timeStamp = getTimestamp(now);
+			time.innerHTML = " " + timeStamp;
+			box.appendChild(message);
+			box.appendChild(name);
+			box.appendChild(time);
+			document.getElementById('chats').appendChild(box);
+		});
+
+		function sendMessage() {
+			event.preventDefault();
+			var message = document.getElementById('message').value;
+			socketio.emit('message_to_server', 
+				{
+					message: message,
+					name: user.name
+				});
+			document.getElementById('message').value = "";
+			
+		}
+
+		function submitName() {
+			event.preventDefault();
+			console.log(user);
+			name = document.getElementById('nameInput').value;
+			if (name == "") {
+				alert("Name cannot be empty. Please try again.");
+				return false;
+			}
+			// var placeName = document.getElementById('nameDisplay');
+			// placeName.innerHTML = "Your name: " + name;
+			user.name = name;
+			socketio.emit('name_submitted', user);
+			document.getElementById('nameInput').setAttribute('placeholder', name);
+			document.getElementById('nameInput').value = "";
+		}
+
+		function makeUserList(list) {
+			document.getElementById('chat-list').innerHTML = "";
+			document.getElementById('listNumber').innerHTML = list.length;
+			for (var i = 0; i < list.length; i++) {
+				var user = document.createElement('div');
+				user.className = 'col-sm-12 list-user';
+				var userIcon = document.createElement('div');
+				userIcon.className = 'col-sm-2 user-icon';
+				userIcon.innerHTML = '<span class="glyphicon glyphicon-user"></span>';
+				var userName = document.createElement('div');
+				userName.className = 'col-sm-9 user-name';
+				userName.innerHTML = list[i].name;
+				if (list[i].id === user.id) {
+					userIcon.innerHTML = '<span class="glyphicon glyphicon-star-empty"></span>';
+				}
+				user.appendChild(userIcon);
+				user.appendChild(userName);
+				document.getElementById('chat-list').appendChild(user);
+			}
+		}
+
+		function updateChatStatus(status) {
+			document.getElementById('chat-status').innerHTML = status;
+			document.getElementById('chat-status').setAttribute('visibility', 'visible');
+			setTimeout(function() {
+				document.getElementById('chat-status').innerHTML = "";
+				document.getElementById('chat-status').setAttribute('visibility', 'hidden'); 
+			}, 4000);
+		}
+
+		function getTimestamp(time) {
+			var now = time;
+			var mo = now.getMonth() + 1;
+			var date = now.getDate();
+			var yr = now.getFullYear();
+			var hour = now.getHours();
+			var min = now.getMinutes();
+			var ampm = "AM";
+
+			if (hour > 12) {
+				hour = hour - 12;
+				ampm = "PM";
+			}
+			var result = mo + "/" + date + "/" + yr + " ";
+			result += hour + ":" + min + " " + ampm;
+			return result;
+		}
+
+		var eraser = {
+			on: false,
+			color: 'white',
+			prevColor: ""
+		}
+		function erase() {
+			console.log(color);
+			if (eraser.on === false) {
+				eraser.on = true;
+				console.log('eraseOn!');
+				eraser.prevColor = color;
+				color = eraser.color;
+			} else if (eraser.on === true) {
+				eraser.on = false;
+				console.log('eraseOff!');
+				color = eraser.prevColor;
+			}
+		}
+	</script>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-sm-12 title">
+				<h2>Chat*Chat</h2>
+			</div>
+		</div>
+		<div class="col-sm-12" id="main">
+			<div class="row">
+				<div class="col-sm-12 userInfoBox">
+					<form class="form-inline" onsubmit="submitName()">
+						<div class="form-group form-group-small">
+							<label for="nameInput">Name</label>
+							<input type="text" class="form-control input-sm" id="nameInput" placeholder="Anonymous">
+						</div>
+						<button type="submit" class="btn btn-default btn-sm">Submit</button>
+					</form>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-12" id="chat-window">
+					<div class="col-sm-2 chat-list-wrapper">
+						<h5>Online <small id="listNumber"></small></h5>
+						<div id="chat-list">
+						</div>
+					</div>
+					<div class="col-sm-10" id="chat-room">
+						<form class="col-sm-8" onsubmit="sendMessage()">
+							<div class="input-group" id="chat-input">
+							<input type="text" class="form-control" id=	"message" placeholder="Say something">
+								<div class="input-group-btn">
+									<button type="submit" class="btn btn-default">Send</button>
+								</div>
+							</div>
+						</form>
+							<div class="col-sm-4" id="toolbar">
+								<div class="row">
+								<form class="col-sm-12 form-inline">
+									<div class="col-sm-3 input-group" id="toolbar-color">
+										<!-- <span class="input-group-addon"><span class="glyphicon glyphicon-task"></span></span> -->
+										<input class="form-control" type="color" id="color-picker">
+									</div>
+									<div class="col-sm-5 input-group" id="toolbar-thickness">
+										<!-- <span class="input-group-addon"><span class="glyphicon glyphicon-pencil"></span></span> -->
+										<input class="form-control" type="number" min="1" id="thickness-picker" placeholder="thickness"> 
+									</div>
+									<div class="col-sm-3 input-group">
+										<div class="input-group-btn">
+											<button type="button" class="btn btn-default" id="toolbar-eraseer"onclick="erase()">
+												<span class="glyphicon glyphicon-erase"></span>
+											</button>
+											<button type="button" class="btn btn-default" id="toolbar-reset"onclick="reset()">
+												<span class="glyphicon glyphicon-trash"></span>
+											</button>
+										</div>
+									</div>
+								</form>
+								</div>
+						</div>
+						<div class="col-sm-6" id="chats">
+							<div id="chat-status">
+							
+							</div>
+<!-- 							<div class="chatBox">
+								<span id="chatBox-chat"></span>
+								<span id="chatBox-user"></span>
+								<span id="chatBox-timeStamp"></span>
+							</div> -->
+						</div>
+						<div class="col-sm-6" id="canvas-wrapper">
+							<canvas id="canvas" width="497.5px" height="500px">
+							
+							</canvas>
+						</div>
+					</div>
+			</div>
+		</div>
+	</div>
+
+<script type="text/javascript">
+	var canvas = document.getElementById('canvas');
+	var context = canvas.getContext('2d');
+	var mouseDown = false;
+	var position;
+	var lastPosition = null;
+	var color = 'black';
+	var thickness = 1;
+	var colorChoice = document.getElementById('color-picker');
+	colorChoice.addEventListener('change', function(event) {
+		color = colorChoice.value;
+	});
+	var thicknessChoice = document.getElementById('thickness-picker');
+	thicknessChoice.addEventListener('change', function(event) {
+		thickness = thicknessChoice.value;
+	});
+
+	canvas.addEventListener('mousedown', function(event) {
+		mouseDown = true;
+	});
+	canvas.addEventListener('mouseup', function(event) {
+		mouseDown = false;
+		lastPosition = null;
+	});
+	canvas.addEventListener('mousemove', function(event) {
+		if (mouseDown) {
+			var p1 = document.getElementById('canvas');
+			console.dir(p1);
+			var p2 = document.getElementById('canvas-wrapper');
+			var p3 = document.getElementById('chat-room');
+			var p4 = document.getElementById('chat-window');
+			var p5 = document.getElementById('main');
+			var y1 = p1.offsetParent.offsetTop;
+			var x1 = p1.offsetParent.offsetLeft;
+			var y2 = p2.offsetParent.offsetTop;
+			var x2 = p2.offsetParent.offsetLeft;
+			var y3 = p3.offsetParent.offsetTop;
+			var x3 = p3.offsetParent.offsetLeft;
+			var y4 = p4.offsetParent.offsetTop;
+			var x4 = p4.offsetParent.offsetLeft;
+			var y5 = p5.offsetParent.offsetTop;
+			var x5 = p5.offsetParent.offsetLeft;
+			var totalOffsetX = x1 + x2 + x3 + x4 + x5;
+			var totalOffsetY = y1 + y2 + y3 + y4 + y5;
+			var brushX = event.pageX - totalOffsetX - 3;
+			var brushY = event.pageY - totalOffsetY - 3;
+			position = {
+				x: brushX,
+				y: brushY
+			};
+			if (lastPosition !== null) {
+				context.strokeStyle = color;
+				context.lineJoin = 'round';
+				context.lineWidth = thickness;
+				context.beginPath();
+				context.moveTo(lastPosition.x, lastPosition.y);
+				context.lineTo(position.x, position.y);
+				context.closePath();
+				context.stroke();		
+			}
+			var drawingData = {
+				position: position,
+				lastPosition: lastPosition,
+				color: color,
+				thickness: thickness
+			};
+			socketio.emit('drawing_to_server', drawingData);
+
+			lastPosition = {
+				x: position.x,
+				y: position.y
+			};
+		}	
+	});
+
+	socketio.on('drawing_to_client', function(data) {
+		context.strokeStyle = data.color;
+		context.lineJoin = "round";
+		context.lineWidth = data.thickness;
+		context.beginPath();
+		context.moveTo(data.lastPosition.x, data.lastPosition.y);
+		context.lineTo(data.position.x, data.position.y);
+		context.closePath();
+		context.stroke();
+	});
+
+</script>
+
+</body>
+</html>

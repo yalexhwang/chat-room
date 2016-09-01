@@ -1,0 +1,22 @@
+{
+  "name": "chat-room",
+  "version": "1.0.0",
+  "description": "A chat room built in node.js using socket.io.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "chat",
+    "socketio",
+    "nodejs",
+    "tcp",
+    "gttp"
+  ],
+  "author": "Alex Hwang",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io": "^1.4.8"
+  }
+}
